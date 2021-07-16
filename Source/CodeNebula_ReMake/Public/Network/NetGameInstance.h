@@ -56,6 +56,7 @@ protected:
 	virtual void OnCreateSessionComplete(FName SessionName, bool Succeeded);
 	virtual void OnFindSessionsComplete(bool Succeeded);
 	virtual void OnJoinSessionComplete(FName SessionName, EOnJoinSessionCompleteResult::Type Result);
+	virtual void OnDestroySessionComplete(FName SessionName, bool Succeeded);
 
 	UFUNCTION(BlueprintCallable)
 		void CreateServer(FString ServerName, FString HostName, int32 MaxPlayers, bool UseLAN);
@@ -65,4 +66,7 @@ protected:
 
 	UFUNCTION(BlueprintCallable)
 		void JoinServer(int32 ArrayIndex);
+
+	UFUNCTION(BlueprintCallable)
+		void DestroyServer();
 };
