@@ -31,7 +31,7 @@ void UNetGameInstance::OnCreateSessionComplete(FName SessionName, bool Succeeded
 	UE_LOG(LogTemp, Warning, TEXT("OnCreateSessionComplete, Succeeded: %d"), Succeeded);
 
 	if (Succeeded) {
-		GetWorld()->ServerTravel("/Game/Maps/Room?listen");
+		UGameplayStatics::OpenLevel(GetWorld(), "/Game/Maps/Room", true, "listen");
 	}
 }
 
@@ -85,18 +85,20 @@ void UNetGameInstance::OnJoinSessionComplete(FName SessionName, EOnJoinSessionCo
 void UNetGameInstance::OnDestroySessionComplete(FName SessionName, bool Succeeded)
 {
 	UE_LOG(LogTemp, Warning, TEXT("OnDestroySessionComplete, SessionName: %s, Succeed: %d"), *SessionName.ToString(), Succeeded);
-
-	UGameplayStatics::OpenLevel(GetWorld(), "MainMenu", true);
 }
 
 void UNetGameInstance::CreateServer(FString ServerName, FString HostName, int32 MaxPlayers, bool UseLAN)
 {
+	UE_LOG(LogTemp, Warning, TEXT("CreateServers"));
+
 	IOnlineSubsystem* const SubSystem = IOnlineSubsystem::Get();
 
 	if (SubSystem) {
 		IOnlineSessionPtr Sessions = SubSystem->GetSessionInterface();
-		 
+
 		if (Sessions.IsValid()) {
+			ULocalPlayer* const Player = GetFirstGamePlayer();
+
 			FOnlineSessionSettings SessionSettings;
 
 			SessionSettings.bIsLANMatch = UseLAN;
@@ -111,53 +113,67 @@ void UNetGameInstance::CreateServer(FString ServerName, FString HostName, int32 
 			SessionSettings.Set(FName("SERVER_NAME_KEY"), ServerName, EOnlineDataAdvertisementType::ViaOnlineServiceAndPing);
 			SessionSettings.Set(FName("SERVER_HOSTNAME_KEY"), HostName, EOnlineDataAdvertisementType::ViaOnlineServiceAndPing);
 
-			Sessions->CreateSession(0, MySessionName, SessionSettings);
+			Sessions->CreateSession(*Player->GetPreferredUniqueNetId(), GameSessionName, SessionSettings);
 		}
 	}
 	else {
 		GEngine->AddOnScreenDebugMessage(-1, 10.f, FColor::Red, TEXT("No OnlineSubsytem found!"));
 	}
-
-	/*UE_LOG(LogTemp, Warning, TEXT("CreateServer"));
-
-	FOnlineSessionSettings SessionSettings;
-	SessionSettings.bAllowJoinInProgress = true;
-	SessionSettings.bIsDedicated = false;
-	SessionSettings.bIsLANMatch = UseLAN;
-	SessionSettings.bShouldAdvertise = true;
-	SessionSettings.bUsesPresence = true;
-	SessionSettings.NumPublicConnections = MaxPlayers;
-
-	SessionSettings.Set(FName("SERVER_NAME_KEY"), ServerName, EOnlineDataAdvertisementType::ViaOnlineServiceAndPing);
-	SessionSettings.Set(FName("SERVER_HOSTNAME_KEY"), HostName, EOnlineDataAdvertisementType::ViaOnlineServiceAndPing);
-
-	SessionInterface->CreateSession(0, MySessionName, SessionSettings);*/
 }
 
 void UNetGameInstance::FindServers(int32 MaxResults, bool UseLAN)
 {
 	UE_LOG(LogTemp, Warning, TEXT("FindServers"));
 
-	SearchingForServer.Broadcast(true);
+	IOnlineSubsystem* const SubSystem = IOnlineSubsystem::Get();
 
-	SessionSearch = MakeShareable(new FOnlineSessionSearch());
-	SessionSearch->bIsLanQuery = UseLAN;
-	SessionSearch->MaxSearchResults = MaxResults;
-	SessionSearch->QuerySettings.Set(SEARCH_PRESENCE, true, EOnlineComparisonOp::Equals);
+	if (SubSystem) {
+		ULocalPlayer* const Player = GetFirstGamePlayer();
 
-	SessionInterface->FindSessions(0, SessionSearch.ToSharedRef());
+		IOnlineSessionPtr Sessions = SubSystem->GetSessionInterface();
+
+		if (Sessions.IsValid()) {
+			SearchingForServer.Broadcast(true);
+
+			SessionSearch = MakeShareable(new FOnlineSessionSearch());
+			SessionSearch->bIsLanQuery = UseLAN;
+			SessionSearch->MaxSearchResults = MaxResults;
+			SessionSearch->QuerySettings.Set(SEARCH_PRESENCE, true, EOnlineComparisonOp::Equals);
+
+			Sessions->FindSessions(*Player->GetPreferredUniqueNetId(), SessionSearch.ToSharedRef());
+		}
+	}
+	else {
+		GEngine->AddOnScreenDebugMessage(-1, 10.f, FColor::Red, TEXT("No OnlineSubsytem found!"));
+	}
 }
 
 void UNetGameInstance::JoinServer(int32 ArrayIndex)
 {
-	FOnlineSessionSearchResult Result = SessionSearch->SearchResults[ArrayIndex];
-	if (Result.IsValid()) {
-		UE_LOG(LogTemp, Warning, TEXT("JOINING SERVER AT INDEX: %d"), ArrayIndex);
+	UE_LOG(LogTemp, Warning, TEXT("JoinServers"));
 
-		SessionInterface->JoinSession(0, MySessionName, Result);
+	IOnlineSubsystem* const SubSystem = IOnlineSubsystem::Get();
+
+	if (SubSystem) {
+		ULocalPlayer* const Player = GetFirstGamePlayer();
+
+		IOnlineSessionPtr Sessions = SubSystem->GetSessionInterface();
+
+		if (Sessions.IsValid()) {
+			FOnlineSessionSearchResult Result = SessionSearch->SearchResults[ArrayIndex];
+
+			if (Result.IsValid()) {
+				UE_LOG(LogTemp, Warning, TEXT("Joining Server At Index: %d"), ArrayIndex);
+
+				SessionInterface->JoinSession(*Player->GetPreferredUniqueNetId(), GameSessionName, Result);
+			}
+			else {
+				UE_LOG(LogTemp, Warning, TEXT("Failed To Join Server At Index: %d"), ArrayIndex);
+			}
+		}
 	}
 	else {
-		UE_LOG(LogTemp, Warning, TEXT("FAILED TO JOIN SERVER AT INDEX: %d"), ArrayIndex);
+		GEngine->AddOnScreenDebugMessage(-1, 10.f, FColor::Red, TEXT("No OnlineSubsytem found!"));
 	}
 }
 
@@ -171,7 +187,7 @@ void UNetGameInstance::DestroyServer()
 		IOnlineSessionPtr Sessions = SubSystem->GetSessionInterface();
 
 		if (Sessions.IsValid()) {
-			Sessions->DestroySession(MySessionName);
+			Sessions->DestroySession(GameSessionName);
 		}
 	}
 	else {
