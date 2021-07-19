@@ -8,12 +8,12 @@
 #include "NetGameInstance.generated.h"
 
 USTRUCT(BlueprintType)
-struct FServerInfo {
+struct FRoomInfo {
 	GENERATED_BODY()
 
 public:
 	UPROPERTY(BlueprintReadOnly)
-		FString ServerName;
+		FString RoomName;
 	UPROPERTY(BlueprintReadOnly)
 		FString HostName;
 	UPROPERTY(BlueprintReadOnly)
@@ -23,11 +23,11 @@ public:
 	UPROPERTY(BlueprintReadOnly)
 		int32 MaxPlayers;
 	UPROPERTY(BlueprintReadOnly)
-		int32 ServerArrayIndex;
+		int32 RoomId;
 };
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FServerDel, FServerInfo, ServerListDel);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FServerSearchingDel, bool, SearchingForServer);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FNewRoomDel, FRoomInfo, NewRoom);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FRoomSearchingDel, bool, Status);
 
 
 UCLASS()
@@ -39,13 +39,11 @@ public:
 	UNetGameInstance();
 
 protected:
-	FName MySessionName;
+	UPROPERTY(BlueprintAssignable)
+		FNewRoomDel NewRoom;
 
 	UPROPERTY(BlueprintAssignable)
-		FServerDel ServerListDel;
-
-	UPROPERTY(BlueprintAssignable)
-		FServerSearchingDel SearchingForServer;
+		FRoomSearchingDel RoomSearching;
 
 	IOnlineSessionPtr SessionInterface;
 
@@ -59,14 +57,17 @@ protected:
 	virtual void OnDestroySessionComplete(FName SessionName, bool Succeeded);
 
 	UFUNCTION(BlueprintCallable)
-		void CreateServer(FString ServerName, FString HostName, int32 MaxPlayers, bool UseLAN);
+		void CreateRoom(FString RoomName, FString HostName, int32 MaxPlayers, bool UseLAN);
 
 	UFUNCTION(BlueprintCallable)
-		void FindServers(int32 MaxResults, bool UseLAN);
+		void FindRooms(int32 MaxResults, bool UseLAN);
 
 	UFUNCTION(BlueprintCallable)
-		void JoinServer(int32 ArrayIndex);
+		void JoinRoom(int32 RoomId);
 
 	UFUNCTION(BlueprintCallable)
-		void DestroyServer();
+		void CloseRoom();
+
+	UFUNCTION(BlueprintCallable)
+		void LeaveRoom();
 };
