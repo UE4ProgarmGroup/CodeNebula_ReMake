@@ -12,7 +12,7 @@ public class CodeNebula_ReMake : ModuleRules
 
 		PrivateDependencyModuleNames.AddRange(new string[] {  });
 
-		DynamicallyLoadedModuleNames.Add("OnlineSubsystemSteam");
+		PrivateDependencyModuleNames.Add("OnlineSubsystem");
 
 		// Uncomment if you are using Slate UI
 		// PrivateDependencyModuleNames.AddRange(new string[] { "Slate", "SlateCore" });
